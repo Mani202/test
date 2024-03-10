@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Source bucket name
+source_bucket="your-source-bucket"
+
+# Source folder within the bucket
+source_folder="your-source-folder"
+
+# Destination bucket name
+destination_bucket="your-destination-bucket"
+
+# Destination folder within the bucket
+destination_folder="your-destination-folder"
+
+# String to be replaced
+replace_string="old-string"
+
+# String to replace with
+replacement_string="new-string"
+
+# Set the start time to midnight on March 9, 2024
+start_time="2024-03-09T00:00:00Z"
+
+# Set the end time to 23:59:59 on March 9, 2024
+end_time="2024-03-09T23:59:59Z"
+
+# Iterate through each minute of the day
+current_time=$start_time
+while [ "$(date -u -d "$current_time" +%s)" -le "$(date -u -d "$end_time" +%s)" ]; do
+    # List objects in the source folder modified in the current minute
+    objects=$(aws s3api list-objects-v2 --bucket "$source_bucket" --prefix "$source_folder/" --query "Contents[?LastModified>='$current_time' && LastModified<'$(date -u -d "$current_time + 1 minute" +"%Y-%m-%dT%H:%M:%SZ")']")
+
+    # Copy each object to the destination folder within the destination bucket
+    for object in $(echo "$objects" | jq -r '.[].Key'); do
+        # Replace the string in the object key
+        new_object_key=$(echo "$object" | sed "s/$replace_string/$replacement_string/g")
+        aws s3 cp "s3://$source_bucket/$object" "s3://$destination_bucket/$destination_folder/$new_object_key"
+    done
+
+    echo "Files modified in minute $current_time have been copied to $destination_folder in $destination_bucket with replaced string"
+
+    # Move to the next minute
+    current_time=$(date -u -d "$current_time + 1 minute" +"%Y-%m-%dT%H:%M:%SZ")
+done
