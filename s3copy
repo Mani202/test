@@ -26,9 +26,9 @@ end_time="2024-03-09T23:59:59Z"
 
 # Iterate through each minute of the day
 current_time=$start_time
-while [ "$(date -u -d "$current_time" +%s)" -le "$(date -u -d "$end_time" +%s)" ]; do
+while [ "$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$current_time" +"%s")" -le "$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$end_time" +"%s")" ]; do
     # List objects in the source folder modified in the current minute
-    objects=$(aws s3api list-objects-v2 --bucket "$source_bucket" --prefix "$source_folder/" --query "Contents[?LastModified>='$current_time' && LastModified<'$(date -u -d "$current_time + 1 minute" +"%Y-%m-%dT%H:%M:%SZ")']")
+    objects=$(aws s3api list-objects-v2 --bucket "$source_bucket" --prefix "$source_folder/" --query "Contents[?LastModified>='$current_time' && LastModified<'$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$current_time + 1 minute" +"%Y-%m-%dT%H:%M:%SZ")']")
 
     # Copy each object to the destination folder within the destination bucket
     for object in $(echo "$objects" | jq -r '.[].Key'); do
@@ -40,5 +40,5 @@ while [ "$(date -u -d "$current_time" +%s)" -le "$(date -u -d "$end_time" +%s)" 
     echo "Files modified in minute $current_time have been copied to $destination_folder in $destination_bucket with replaced string"
 
     # Move to the next minute
-    current_time=$(date -u -d "$current_time + 1 minute" +"%Y-%m-%dT%H:%M:%SZ")
+    current_time=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" -v+1M "$current_time" +"%Y-%m-%dT%H:%M:%SZ")
 done
